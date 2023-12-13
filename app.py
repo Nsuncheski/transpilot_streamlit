@@ -1,129 +1,92 @@
+# Import necessary libraries
 import streamlit as st
-import pandas as pd 
-from db_fxns import * 
-import streamlit.components.v1 as stc
+from sqlalchemy import create_engine, Column, Integer, String, Text
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 
+# Set up database connection
+DATABASE_URL = "sqlite:///crud_app.db"
+engine = create_engine(DATABASE_URL, echo=True)
+Base = declarative_base()
 
+# Define the data model
+class Item(Base):
+    __tablename__ = "items"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    description = Column(Text)
 
-# Data Viz Pkgs
-import plotly.express as px 
+# Create the database tables
+Base.metadata.create_all(bind=engine)
 
-
-HTML_BANNER = """
-    <div style="background-color:#464e5f;padding:10px;border-radius:10px">
-    <h1 style="color:white;text-align:center;">ToDo App (CRUD)</h1>
-    <p style="color:white;text-align:center;">Built with Streamlit</p>
-    </div>
-    """
-
-
+# Set up Streamlit app
 def main():
-	stc.html(HTML_BANNER)
+    st.markdown('<style>' + open('style.css').read() + '</style>', unsafe_allow_html=True)
+    st.title("CRUD App with Streamlit")
 
+    # Sidebar for CRUD operations
+    menu = ["Create", "Read", "Update", "Delete"]
+    lanchas = ["Create", "Read", "Update", "Delete"]
+    choice = st.sidebar.selectbox("Select Operation", menu)
+    if choice == "Create":
+        create_item()
+    elif choice == "Read":
+        read_items()
+    elif choice == "Update":
+        update_item()
+    elif choice == "Delete":
+        delete_item()
 
-	menu = ["Create","Read","Update","Delete","About"]
-	choice = st.sidebar.selectbox("Menu",menu)
-	create_table()
+# Function to create a new item
+def create_item():
+    st.header("Create Item")
+    name = st.text_input("Enter Item Name:")
+    description = st.text_area("Enter Item Description:")
+    if st.button("Create"):
+        session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+        new_item = Item(name=name, description=description)
+        session.add(new_item)
+        session.commit()
+        st.success("Item created successfully!")
 
-	if choice == "Create":
-		st.subheader("Add Item")
-		col1,col2 = st.beta_columns(2)
-		
-		with col1:
-			task = st.text_area("Task To Do")
+# Function to read all items
+def read_items():
+    st.header("Read Items")
+    session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+    items = session.query(Item).all()
+    for item in items:
+        st.write(f"ID: {item.id}, Name: {item.name}, Description: {item.description}")
 
-		with col2:
-			task_status = st.selectbox("Status",["ToDo","Doing","Done"])
-			task_due_date = st.date_input("Due Date")
+# Function to update an item
+def update_item():
+    st.header("Update Item")
+    item_id = st.number_input("Enter Item ID to Update:")
+    new_name = st.text_input("Enter New Name:")
+    new_description = st.text_area("Enter New Description:")
+    if st.button("Update"):
+        session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+        item = session.query(Item).filter(Item.id == item_id).first()
+        if item:
+            item.name = new_name
+            item.description = new_description
+            session.commit()
+            st.success("Item updated successfully!")
+        else:
+            st.error("Item not found.")
 
-		if st.button("Add Task"):
-			add_data(task,task_status,task_due_date)
-			st.success("Added ::{} ::To Task".format(task))
+# Function to delete an item
+def delete_item():
+    st.header("Delete Item")
+    item_id = st.number_input("Enter Item ID to Delete:")
+    if st.button("Delete"):
+        session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()
+        item = session.query(Item).filter(Item.id == item_id).first()
+        if item:
+            session.delete(item)
+            session.commit()
+            st.success("Item deleted successfully!")
+        else:
+            st.error("Item not found.")
 
-
-	elif choice == "Read":
-		# st.subheader("View Items")
-		with st.beta_expander("View All"):
-			result = view_all_data()
-			# st.write(result)
-			clean_df = pd.DataFrame(result,columns=["Task","Status","Date"])
-			st.dataframe(clean_df)
-
-		with st.beta_expander("Task Status"):
-			task_df = clean_df['Status'].value_counts().to_frame()
-			# st.dataframe(task_df)
-			task_df = task_df.reset_index()
-			st.dataframe(task_df)
-
-			p1 = px.pie(task_df,names='index',values='Status')
-			st.plotly_chart(p1,use_container_width=True)
-
-
-	elif choice == "Update":
-		st.subheader("Edit Items")
-		with st.beta_expander("Current Data"):
-			result = view_all_data()
-			# st.write(result)
-			clean_df = pd.DataFrame(result,columns=["Task","Status","Date"])
-			st.dataframe(clean_df)
-
-		list_of_tasks = [i[0] for i in view_all_task_names()]
-		selected_task = st.selectbox("Task",list_of_tasks)
-		task_result = get_task(selected_task)
-		# st.write(task_result)
-
-		if task_result:
-			task = task_result[0][0]
-			task_status = task_result[0][1]
-			task_due_date = task_result[0][2]
-
-			col1,col2 = st.beta_columns(2)
-			
-			with col1:
-				new_task = st.text_area("Task To Do",task)
-
-			with col2:
-				new_task_status = st.selectbox(task_status,["ToDo","Doing","Done"])
-				new_task_due_date = st.date_input(task_due_date)
-
-			if st.button("Update Task"):
-				edit_task_data(new_task,new_task_status,new_task_due_date,task,task_status,task_due_date)
-				st.success("Updated ::{} ::To {}".format(task,new_task))
-
-			with st.beta_expander("View Updated Data"):
-				result = view_all_data()
-				# st.write(result)
-				clean_df = pd.DataFrame(result,columns=["Task","Status","Date"])
-				st.dataframe(clean_df)
-
-
-	elif choice == "Delete":
-		st.subheader("Delete")
-		with st.beta_expander("View Data"):
-			result = view_all_data()
-			# st.write(result)
-			clean_df = pd.DataFrame(result,columns=["Task","Status","Date"])
-			st.dataframe(clean_df)
-
-		unique_list = [i[0] for i in view_all_task_names()]
-		delete_by_task_name =  st.selectbox("Select Task",unique_list)
-		if st.button("Delete"):
-			delete_data(delete_by_task_name)
-			st.warning("Deleted: '{}'".format(delete_by_task_name))
-
-		with st.beta_expander("Updated Data"):
-			result = view_all_data()
-			# st.write(result)
-			clean_df = pd.DataFrame(result,columns=["Task","Status","Date"])
-			st.dataframe(clean_df)
-
-	else:
-		st.subheader("About ToDo List App")
-		st.info("Built with Streamlit")
-		st.info("Jesus Saves @JCharisTech")
-		st.text("Jesse E.Agbe(JCharis)")
-
-
-if __name__ == '__main__':
-	main()
-
+if __name__ == "__main__":
+    main()
