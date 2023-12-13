@@ -21,7 +21,7 @@ Base.metadata.create_all(bind=engine)
 
 # Set up Streamlit app
 def main():
-    st.markdown('<style>' + open('style.css').read() + '</style>', unsafe_allow_html=True)
+
     st.title("CRUD App with Streamlit")
 
     # Sidebar for CRUD operations

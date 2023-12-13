@@ -11,9 +11,7 @@ st.set_page_config(layout="wide")
 st.header("Custom tab component for on-hover navigation bar")
 DATABASE_URL = "sqlite:///crud_app.db"
 engine = create_engine(DATABASE_URL, echo=True)
-with st.sidebar:
-    tabs = on_hover_tabs(tabName=['lanchas nuevas', 'Mantenimientos', 'Administrativos', 'Viajes'], 
-                         iconName=['dashboard', 'tool', 'economy', 'task'], default_choice=0)
+
 session = sessionmaker(autocommit=False, autoflush=False, bind=engine)()    
 def cargar_lancha():
     st.header("Cargar lancha nueva")
@@ -178,24 +176,10 @@ def mostrar_viajes():
     # Muestra la tabla en Streamlit
     st.table(df)
 
-if tabs =='lanchas nuevas':
-    st.title("Lanchas")
-    cargar_lancha()
-    mostrar_lanchas()
 
-elif tabs == 'Mantenimientos':
-    st.title("Mantenimiento")
-    cargar_mantenimiento()
-    mostrar_mantenimiento()
+st.title("Lanchas")
+cargar_lancha()
+mostrar_lanchas()
 
-elif tabs == 'Viajes':
-    st.title("Viajes")
-    cargar_ticket()
-    mostrar_viajes()
-
-elif tabs == 'Administrativos':
-    st.title("Administrativo")
-    cargar_administrativo()
-    mostrar_administrativo()
     
 
